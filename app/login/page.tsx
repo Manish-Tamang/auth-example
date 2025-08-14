@@ -7,20 +7,60 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useState } from "react"
+import { signIn, getSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
 
-  const handleEmailLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if user is already authenticated
+    getSession().then((session) => {
+      if (session) {
+        router.push("/profile")
+      }
+    })
+  }, [router])
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement email/password login
-    console.log("Email login:", { email, password })
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError("Invalid email or password")
+      } else {
+        router.push("/profile")
+      }
+    } catch (error) {
+      setError("An error occurred during login")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google login
-    console.log("Google login")
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    setError("")
+
+    try {
+      await signIn("google", { callbackUrl: "/profile" })
+    } catch (error) {
+      setError("An error occurred during Google login")
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -40,9 +80,16 @@ export default function LoginPage() {
             <p className="text-gray-600">Sign in to your account to continue</p>
           </div>
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-4">
             <Button
               onClick={handleGoogleLogin}
+              disabled={isLoading}
               variant="outline"
               className="w-full py-3 border-gray-300 hover:bg-gray-50 bg-transparent"
             >
@@ -64,7 +111,7 @@ export default function LoginPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Continue with Google
+              {isLoading ? "Signing in..." : "Continue with Google"}
             </Button>
 
             <div className="relative">
@@ -88,6 +135,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  disabled={isLoading}
                   className="w-full border-gray-300"
                 />
               </div>
@@ -102,11 +150,16 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
+                  disabled={isLoading}
                   className="w-full border-gray-300"
                 />
               </div>
-              <Button type="submit" className="w-full bg-black hover:bg-gray-800 text-white py-3">
-                Sign in
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full bg-black hover:bg-gray-800 text-white py-3"
+              >
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </div>
